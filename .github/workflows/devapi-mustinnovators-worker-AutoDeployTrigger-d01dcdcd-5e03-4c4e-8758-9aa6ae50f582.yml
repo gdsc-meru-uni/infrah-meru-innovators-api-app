@@ -1,0 +1,44 @@
+name: Trigger auto deployment for devapi-mustinnovators-worker
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ deployv2 ]
+    paths:
+    - '**'
+    - '.github/workflows/devapi-mustinnovators-worker-AutoDeployTrigger-d01dcdcd-5e03-4c4e-8758-9aa6ae50f582.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.DEVAPIMUSTINNOVATORSWORKER_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: devapimustinnovatorscontregistry.azurecr.io
+          registryUsername: ${{ secrets.DEVAPIMUSTINNOVATORSWORKER_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.DEVAPIMUSTINNOVATORSWORKER_REGISTRY_PASSWORD }}
+          containerAppName: devapi-mustinnovators-worker
+          resourceGroup: MeruInnovators
+          imageToBuild: devapimustinnovatorscontregistry.azurecr.io/devapi-mustinnovators-worker:${{ github.sha }}
+          
+            
+
+     
+
