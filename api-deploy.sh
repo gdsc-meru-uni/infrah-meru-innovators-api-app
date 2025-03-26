@@ -150,7 +150,7 @@ deploy_container_app() {
     local registry_url="${ENVIRONMENT_PREFIX}${PROJECT_PREFIX}contregistry.azurecr.io"
     local repo_url="https://github.com/CollinsMunene-Developer/meruinnovators"
 
-    local branch="main"
+    local branch="deployv2"
 
     log_info "Deploying Container App: $container_app_name"
 
