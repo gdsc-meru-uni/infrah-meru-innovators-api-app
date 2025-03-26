@@ -164,23 +164,7 @@ deploy_container_app() {
         --branch "$branch" \
         --registry-server "$registry_url" \
         --ingress external \
-        --target-port 8000 \
-        --env-vars \
-        "DJANGO_SECRET_KEY=$DJANGO_SECRET_KEY" \
-        "DB_NAME=$DB_NAME" \
-        "DB_USER=$DB_USER" \
-        "DB_PASSWORD=$DB_PASSWORD" \
-        "DB_HOST=$DB_HOST" \
-        "DB_PORT=$DB_PORT" \
-        "EMAIL_HOST_USER=$EMAIL_HOST_USER" \
-        "EMAIL_HOST_PASSWORD=$EMAIL_HOST_PASSWORD" \
-        "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" \
-        "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" \
-        "AWS_STORAGE_BUCKET_NAME=$AWS_STORAGE_BUCKET_NAME" \
-        "AWS_S3_REGION_NAME=$AWS_S3_REGION_NAME" \
-        "JWT_SECRET=$JWT_SECRET" \
-        "ALLOWED_HOSTS=$ALLOWED_HOSTS"
-
+        --target-port 8000 
 
 
     # Update container app settings
