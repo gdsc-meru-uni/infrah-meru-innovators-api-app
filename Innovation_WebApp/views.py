@@ -387,7 +387,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     'data': None
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # If serializer is not valid, return detailed error messages
+        # If serializer is not valid, return detailed error messagess
         error_messages = "\n".join(
             f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
         )
