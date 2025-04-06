@@ -1,4 +1,5 @@
 import csv
+import traceback
 from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
 from rest_framework import viewsets, views, status,permissions
@@ -335,7 +336,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                 'message': 'Event ID is missing in the request URL',
                 'status': 'failed',
                 'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)  # Changed to 400 as it's a client error
+            }, status=status.HTTP_400_BAD_REQUEST)
 
         # Get email from request data
         email = request.data.get('email')
@@ -354,7 +355,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             try:
-                # Save the registration
+                # Save the registration without returning ID field
                 registration = serializer.save()
 
                 # Queue WhatsApp notification
@@ -381,12 +382,12 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                 traceback.print_exc()  # Print full error traceback for debugging
                 print(f'Error during registration process: {str(e)}')
                 return Response({
-                    'message': 'An error occurred during registration',
+                    'message': f'An error occurred during registration: {str(e)}',
                     'status': 'failed',
                     'data': None
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        # If serializer is not valid, return detailed error messages
+        # If serializer is not valid, return detailed error messagess
         error_messages = "\n".join(
             f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
         )
@@ -434,6 +435,98 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+        
+    
+    @action(detail=False, methods=['get'], url_path='user-events/(?P<user_id>\d+)')
+    def get_events_by_user_id(self, request, user_id=None, *args, **kwargs):
+        try:
+            # Validate user_id is provided
+            if not user_id:
+                return Response({
+                    'message': 'User ID is required',
+                    'status': 'failed',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # First, get the user's email based on their ID
+            try:
+                from django.contrib.auth import get_user_model
+                User = get_user_model()
+                user = User.objects.get(id=user_id)
+                user_email = user.email
+            except User.DoesNotExist:
+                return Response({
+                    'message': 'User not found',
+                    'status': 'failed',
+                    'data': None
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Now use the email to find all registrations
+            registrations = EventRegistration.objects.filter(email=user_email)
+
+            if not registrations.exists():
+                return Response({
+                    'message': 'No registrations found for this user',
+                    'status': 'success',
+                    'data': []
+                }, status=status.HTTP_200_OK)
+
+            # Serialize the registrations
+            serializer = self.get_serializer(registrations, many=True)
+            
+            return Response({
+                'message': 'User registrations retrieved successfully',
+                'status': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({
+                'message': f'Error retrieving registrations: {str(e)}',
+                'status': 'failed',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        
+    @action(detail=False, methods=['get'], url_path='my-registrations')
+    def get_my_registrations(self, request, *args, **kwargs):
+        try:
+            # Ensure user is authenticated
+            if not request.user.is_authenticated:
+                return Response({
+                    'message': 'Authentication required',
+                    'status': 'failed',
+                    'data': None
+                }, status=status.HTTP_401_UNAUTHORIZED)
+            
+            # Get the authenticated user's email
+            user_email = request.user.email
+            
+            # Find all registrations with this email
+            registrations = EventRegistration.objects.filter(email=user_email)
+            
+            if not registrations.exists():
+                return Response({
+                    'message': 'You have no registered events',
+                    'status': 'success',
+                    'data': []
+                }, status=status.HTTP_200_OK)
+            
+            # Serialize the registrations
+            serializer = self.get_serializer(registrations, many=True)
+            
+            return Response({
+                'message': 'Your registered events retrieved successfully',
+                'status': 'success',
+                'data': serializer.data
+            }, status=status.HTTP_200_OK)
+            
+        except Exception as e:
+            return Response({
+                'message': f'Error retrieving your registrations: {str(e)}',
+                'status': 'failed',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
     def get_queryset(self):

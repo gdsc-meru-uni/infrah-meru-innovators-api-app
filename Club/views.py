@@ -11,6 +11,22 @@ from .serializers import ClubSerializer, ExecutiveMemberSerializer
 DEFAULT_CLUB_ID = 1
 
 class ClubDetailView(APIView):
+
+    def post(self,request):
+    # Create a neww club
+        serializer = ClubSerializer(data=request.data)
+        if serializer.is_valid():
+            club = serializer.save()
+            return Response({
+                'messsage':'Club created succssfully',
+                'status':'succcess',
+                'data':serializer.data
+            },status=status.HTTP_201_CREATED)
+        return Response({
+            'message':f'Club Creation failed:{serializer.errors}',
+            'status':'failed',
+            'data':None
+        },status=status.HTTP_400_BAD_REQUEST)
     """
     Vieww to retrieve, update , or delete club details
     Since we're only dealing with one club, we'll always use the default ID.

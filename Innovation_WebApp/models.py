@@ -54,7 +54,7 @@ class EventRegistration(models.Model):
     ]
     
     # Remove the explicit id field and let Django handle the primary key
-    uid = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     
     event = models.ForeignKey('Events', on_delete=models.CASCADE, related_name='registrations')
     full_name = models.CharField(max_length=200)

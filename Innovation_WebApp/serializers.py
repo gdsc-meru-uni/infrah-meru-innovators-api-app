@@ -157,22 +157,22 @@ class EventsSerializer(serializers.ModelSerializer):
 
 
 class EventRegistrationSerializer(serializers.ModelSerializer):
-        class Meta:
-            model = EventRegistration
-            fields = '__all__'
-            #exclude = ('uid',)
-            read_only_fields = [ 'registration_timestamp', 'ticket_number']
+    class Meta:
+        model = EventRegistration
+        fields = ['uid', 'event', 'full_name', 'email', 'course', 'educational_level', 
+                 'phone_number', 'expectations', 'registration_timestamp', 'ticket_number']
+        read_only_fields = ['registration_timestamp', 'ticket_number']
 
-        def create(self, validated_data):
-            registration = super().create(validated_data)
-            
-            # Send ticket email
-            send_ticket_email(registration)
+    def create(self, validated_data):
+        registration = super().create(validated_data)
+        
+        # Send ticket email
+        send_ticket_email(registration)
 
-            # send WhatsApp notification
-            send_registration_confirmation.delay(str(registration.uid))
+        # send WhatsApp notification
+        send_registration_confirmation.delay(str(registration.uid))
 
-            return registration
+        return registration
     
 class CommunitySessionSerializer(serializers.ModelSerializer):
     class Meta:
