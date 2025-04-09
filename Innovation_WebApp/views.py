@@ -329,25 +329,24 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     queryset = EventRegistration.objects.all()
     serializer_class = EventRegistrationSerializer
 
-    def create(self, request, *args, **kwargs):
+    def create(self,request,*args,**kwargs):
         event_pk = self.kwargs.get('event_pk')
         if not event_pk:
             return Response({
-                'message': 'Event ID is missing in the request URL',
-                'status': 'failed',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+                "message":"Event ID missing in the request URL",
+                "status":"failed",
+                "data":None
+            },status=status.HTTP_400_BAD_REQUEST)
+        
         # Get email from request data
         email = request.data.get('email')
         if not email:
             return Response({
-                'message': 'Email is required for registration',
-                'status': 'failed',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+                "message":"Email is required for registration",
+                "status":"failed",
+                "data":None
+            },status=status.HTTP_400_BAD_REQUEST)
 
-        # Prepare data for serializer
         mutable_data = request.data.copy()
         mutable_data['event'] = event_pk
 
@@ -355,39 +354,40 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             try:
-                # Save the registration without returning ID field
                 registration = serializer.save()
 
-                # Queue WhatsApp notification
+                event = registration.event
+
                 send_registration_confirmation.delay(str(registration.uid))
 
-                # Return response with registration details
                 return Response({
-                    'message': 'Successfully registered for the event',
-                    'status': 'success',
-                    'data': [{
-                        "uid": str(registration.uid),
-                        "full_name": registration.full_name,
-                        "email": registration.email,
-                        "course": registration.course,
-                        "educational_level": registration.educational_level,
-                        "phone_number": registration.phone_number,
-                        "expectations": registration.expectations,
-                        "registration_timestamp": registration.registration_timestamp.isoformat(),
-                        "ticket_number": str(registration.ticket_number),
-                    }]
-                }, status=status.HTTP_201_CREATED)  
-
+                    "message":"successfully registered for the event",
+                    "status":"success",
+                    "data":{
+                    "eventName": event.name,
+                    "eventDescription": event.description,
+                    "eventLocation": event.location,
+                    "eventDate": event.date.isoformat(),
+                    "course": registration.course,
+                    "educational_level": registration.educational_level,
+                    "email": registration.email,
+                    "event": event.id,
+                    "expectations": registration.expectations,
+                    "full_name": registration.full_name,
+                    "phone_number": registration.phone_number,
+                    "registration_timestamp": registration.registration_timestamp.isoformat(),
+                    "ticket_number": str(registration.ticket_number),
+                    "uid": str(registration.uid)
+                    }
+                },status=status.HTTP_201_CREATED)  
             except Exception as e:
-                traceback.print_exc()  # Print full error traceback for debugging
-                print(f'Error during registration process: {str(e)}')
+                traceback.print_exc()
+                print(f'Error during registration process:{str(e)}')
                 return Response({
-                    'message': f'An error occurred during registration: {str(e)}',
-                    'status': 'failed',
-                    'data': None
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        # If serializer is not valid, return detailed error messagess
+                    "message":f'An error occured registration:{str(e)}',
+                    "status":"failed",
+                    "data":None
+                },status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         error_messages = "\n".join(
             f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
         )
@@ -395,8 +395,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             'message': f'Event registration failed: {error_messages}',
             'status': 'failed',
             'data': None
-        }, status=status.HTTP_400_BAD_REQUEST)
-    
+        }, status=status.HTTP_400_BAD_REQUEST) 
 
     @action(detail=False, methods=['get'], url_path='user-registrations')
     def get_user_registered_events(self, request):
