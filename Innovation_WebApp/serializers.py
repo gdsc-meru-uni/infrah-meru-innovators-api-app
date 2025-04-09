@@ -2,7 +2,7 @@ from grpc import Status
 from requests import Response, Session
 from rest_framework import serializers
 
-from AboutUs.models import Club
+
 from Innovation_WebApp.Email import send_ticket_email
 from .models import CommunityMember, SubscribedUsers, Events,EventRegistration,CommunityProfile,CommunitySession,Social_media
 import boto3

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Feedback
+from .models import Feedback,FeedbackCategory,FeedbackPriority,FeedbackStatus
 
 @admin.register(Feedback)
 class FeedbackAdmin(admin.ModelAdmin):
@@ -21,3 +21,4 @@ class FeedbackAdmin(admin.ModelAdmin):
             'fields': ('status', 'priority', 'submitted_at', 'updated_at')
         }),
     )
+

@@ -71,7 +71,6 @@ urlpatterns = [
     
     path('', include(router.urls)),
     path('', include(event_router.urls)),
-    path('',include('AboutUs.urls')),
 
     path('testimonies/', include('testimonials.urls')),
 
