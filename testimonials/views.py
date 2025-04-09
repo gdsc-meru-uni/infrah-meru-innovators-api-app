@@ -11,6 +11,7 @@ class TestimonialViewSet(viewsets.ModelViewSet):
     serializer_class = TestimonialSerializer
     filter_backends = [filters.OrderingFilter]    
     ordering_fields = ['created_at', 'rating']
+    authentication_classes = []
 
 
     def get_permissions(self):
@@ -20,6 +21,8 @@ class TestimonialViewSet(viewsets.ModelViewSet):
             permission_classes = [permissions.IsAdminUser]
         elif self.action == 'create':
             permission_classes = [permissions.IsAuthenticated]
+        elif self.action == 'list':
+            permission_classes = [permissions.AllowAny]
         else:
             permission_classes = [permissions.AllowAny]
         return [permission() for permission in permission_classes]
