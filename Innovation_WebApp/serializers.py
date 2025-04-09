@@ -169,8 +169,15 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
         # Send ticket email
         send_ticket_email(registration)
 
-        # send WhatsApp notification
-        send_registration_confirmation.delay(str(registration.uid))
+        # send WhatsApp notification 
+        try:
+            send_registration_confirmation.delay(str(registration.uid))
+        except Exception as e:
+            # Log the error but don't fail the registration
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to queue WhatsApp notification: {e}")
+           
 
         return registration
     

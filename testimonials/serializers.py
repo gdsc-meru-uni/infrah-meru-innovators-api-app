@@ -13,7 +13,8 @@ class TestimonialSerializer(serializers.ModelSerializer):
     def get_user_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
     
-    def create(self, validated_data):
-        # set the user to the current user
+    def create(self,validated_data):
         validated_data['user'] = self.context['request'].user
+        validated_data['status'] = Testimonial.APPROVED
         return super().create(validated_data)
+    

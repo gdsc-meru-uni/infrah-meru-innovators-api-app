@@ -11,18 +11,18 @@ class TestimonialViewSet(viewsets.ModelViewSet):
     serializer_class = TestimonialSerializer
     filter_backends = [filters.OrderingFilter]    
     ordering_fields = ['created_at', 'rating']
-    authentication_classes = []
+  
 
 
     def get_permissions(self):
-        if self.action in ['update','partial_update','destroy']:
+        if self.action in ['update', 'partial_update', 'destroy']:
             permission_classes = [IsOwnerOrReadOnly]
-        elif self.action in ['approve','reject']:
+        elif self.action in ['approve', 'reject']:
             permission_classes = [permissions.IsAdminUser]
         elif self.action == 'create':
             permission_classes = [permissions.IsAuthenticated]
         elif self.action == 'list':
-            permission_classes = [permissions.AllowAny]
+            permission_classes = []
         else:
             permission_classes = [permissions.AllowAny]
         return [permission() for permission in permission_classes]
@@ -30,28 +30,25 @@ class TestimonialViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Testimonial.objects.all()
 
-        # if not admin,only show  approved testimonials (except user's owwn)
-        if not self.request.user.is_staff:
-            if self.request.user.is_authenticated:
-                queryset = queryset.filter(
-                    models.Q(status=Testimonial.APPROVED) | 
-                    models.Q(user=self.request.user)
-                )
-            else:
-                queryset = queryset.filter(status=Testimonial.APPROVED)
-        return queryset
+        if self.request.user.is_staff:
+            return queryset
+        else:
+            return queryset .filter(status=Testimonial.APPROVED)
+        
     
     @action(detail=True, methods=['post'])
-    def approve (self,request,pk=None):
+    def approve(self, request, pk=None):
         testimonial = self.get_object()
         testimonial.status = Testimonial.APPROVED
         testimonial.save()
-        return Response({'status':'testimonial approved'})
-    
+        return Response({'status': 'testimonial approved'})
+
     @action(detail=True, methods=['post'])
-    def reject (self,request,pk=None):
+    def reject(self, request, pk=None):
         testimonial = self.get_object()
         testimonial.status = Testimonial.REJECTED
         testimonial.save()
-        return Response({'status':'testimonial rejected'})
+        return Response({'status': 'testimonial rejected'})
     
+
+
