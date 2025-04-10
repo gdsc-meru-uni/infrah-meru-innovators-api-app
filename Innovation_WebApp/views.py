@@ -40,7 +40,6 @@ from .serializers import EventsSerializer  # Assuming EventsSerializer is import
 from django.conf import settings
 from django.shortcuts import get_object_or_404
 s3_client = boto3.client('s3')
-from .tasks import send_registration_confirmation
 from Club.models import Club
 class EventPagination(PageNumberPagination):
     page_size = 10 
@@ -358,7 +357,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
 
                 event = registration.event
 
-                send_registration_confirmation.delay(str(registration.uid))
+               
 
                 return Response({
                     "message":"successfully registered for the event",
@@ -395,7 +394,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             'message': f'Event registration failed: {error_messages}',
             'status': 'failed',
             'data': None
-        }, status=status.HTTP_400_BAD_REQUEST) 
+        }, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'], url_path='user-registrations')
     def get_user_registered_events(self, request):

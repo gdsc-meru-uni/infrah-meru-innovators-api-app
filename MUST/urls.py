@@ -81,6 +81,6 @@ urlpatterns = [
 
     path('api/', include('Club.urls')),
 
-    path('api/',include('fcm_django.urls')),
+    # path('api/',include('fcm_django.urls')),
 ]
 

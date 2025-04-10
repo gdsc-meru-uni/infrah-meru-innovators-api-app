@@ -13,6 +13,7 @@ from.models import UserProfile
 
 from django.contrib.auth import get_user_model
 
+from django.db import transaction
 
 
 User = get_user_model()
@@ -51,10 +52,12 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def validate(self, data):
-        # Check for existing username and email
-        if User.objects.filter(username=data['username']).exists():
+        username = data['username'].lower()
+        if User.objects.filter(username__iexact=username).exists():
             raise serializers.ValidationError({"username": "Username already exists"})
-        if User.objects.filter(email=data['email']).exists():
+        
+        # Case-insensitive check for existing email
+        if User.objects.filter(email__iexact=data['email']).exists():
             raise serializers.ValidationError({"email": "Email already exists"})
         return data
     
@@ -62,24 +65,26 @@ class RegisterSerializer(serializers.Serializer):
     
 
     def create(self, validated_data):
-        # Extract user profile
+    # Extract user profile
         course = validated_data.pop('course')
 
-        # Create User with 'is_active=False'
-        user = User.objects.create_user(
-            username=validated_data['username'].lower(),
-            email=validated_data['email'],
-            first_name=validated_data['firstname'],
-            last_name=validated_data['lastname'],
-            password=validated_data['password'],
-            is_active=False, #User will remain inactive unttil the email is verified 
-        )
-        UserProfile.objects.create(
-            user=user,
-            #registration_no=registration_no,
-            course=course
-        )
+        # Use transaction to ensure atomicity
+        with transaction.atomic():
+            # Create User with 'is_active=False'
+            user = User.objects.create_user(
+                username=validated_data['username'].lower(),
+                email=validated_data['email'],
+                first_name=validated_data['firstname'],
+                last_name=validated_data['lastname'],
+                password=validated_data['password'],
+                is_active=False, # User will remain inactive until the email is verified 
+            )
+            UserProfile.objects.create(
+                user=user,
+                course=course
+            )
         return user
+    
     
 
 class LoginSerializer(serializers.Serializer):

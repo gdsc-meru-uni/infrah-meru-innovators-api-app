@@ -8,7 +8,6 @@ from .models import CommunityMember, SubscribedUsers, Events,EventRegistration,C
 import boto3
 from django.conf import settings
 import uuid
-from .whatsapp_service import send_registration_confirmation
 from django.db import IntegrityError, DatabaseError, OperationalError
 from Club.models import Club,ExecutiveMember
 from Club.serializers import ExecutiveMemberSerializer,ClubSerializer
@@ -169,16 +168,7 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
         # Send ticket email
         send_ticket_email(registration)
 
-        # send WhatsApp notification 
-        try:
-            send_registration_confirmation.delay(str(registration.uid))
-        except Exception as e:
-            # Log the error but don't fail the registration
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to queue WhatsApp notification: {e}")
-           
-
+        
         return registration
     
 class CommunitySessionSerializer(serializers.ModelSerializer):
