@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Club,ExecutiveMember
 from .serializers import ClubSerializer, ExecutiveMemberSerializer
-
+from rest_framework.decorators import action
 # Create your views here.
 
 # Default club ID (Meru University Science Innovators Club)
@@ -167,3 +167,40 @@ class ExecutiveMemberViewSet(viewsets.ModelViewSet):
                 'status': 'failed',
                 'data': None
             }, status=status.HTTP_400_BAD_REQUEST)
+        
+    @action(detail=False, methods=['post'], url_path='check-email')
+    def check_email(self,request):
+        try:
+            email = request.data.get('email')
+
+            if not email:
+                return Response({
+                    "message":"Email if required",
+                    "status":"failed",
+                    "data":None
+                },status=status.HTTP_400_BAD_REQUEST)
+            
+            executive = ExecutiveMember.objects.filter(email=email).first()
+
+            if executive:
+                serializer = self.get_serializer(executive)
+                return Response({
+                    "message":"User is an executive member",
+                    "status":"success",
+                    "data":serializer.data,
+                    "is_executive":True
+                })
+            else:
+                return Response({
+                    "message":"User is not an executive member",
+                    "status":"success",
+                    "data":None,
+                    "is_executive":False
+                })
+        except Exception as e:
+            return Response({
+                "message":f'Error checking executive status',
+                "status":"failed",
+                "data":None,
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
