@@ -29,7 +29,7 @@ class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     course = models.CharField(max_length=50)
     registration_no = models.CharField(max_length=50,blank=True,null=True)
-    bio = models.CharField(max_length=50,null=True)
+    bio = models.CharField(null=True)
     tech_stacks = models.TextField(blank=True,null=True) # Will store as JSON string
     social_media = models.TextField(blank=True,null=True)
     photo = models.ImageField(upload_to='profile_photos/',blank=True,null=True)

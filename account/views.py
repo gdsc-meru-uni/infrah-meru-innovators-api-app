@@ -143,7 +143,7 @@ class RegisterView(APIView):
     If you didn't register for an account, please ignore this email.
 
     Best regards,
-    Your Application Team
+    Meru University Science Innovators Club (M.U.S.I.C)
     """
         from_email = settings.EMAIL_HOST_USER
         recipient_list = [user.email]
@@ -928,9 +928,6 @@ class DeleteAccountView(APIView):
         # Delete the authenticated user's account
         user = request.user
         user.delete()
-        return Response(
-            {"detail": "User account deleted successfully."},
-            status=status.HTTP_204_NO_CONTENT
-        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 

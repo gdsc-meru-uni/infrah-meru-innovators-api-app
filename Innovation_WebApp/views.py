@@ -515,9 +515,8 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     'data': []
                 }, status=status.HTTP_200_OK)
             
-            # Use the updated serializer for the registration with event details
-            registration = registrations.first()  # Get the first registration
-            serializer = MyRegistrationSerializer(registration)
+            # Serialize all registrations, not just the first one
+            serializer = MyRegistrationSerializer(registrations, many=True)
             
             return Response({
                 'message': 'Your registered events retrieved successfully',
