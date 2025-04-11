@@ -149,13 +149,11 @@ deploy_container_app() {
     local container_app_name="${ENVIRONMENT_PREFIX}-${PROJECT_PREFIX}-worker"
     local registry_url="${ENVIRONMENT_PREFIX}${PROJECT_PREFIX}contregistry.azurecr.io"
     local repo_url="https://github.com/gdsc-meru-uni/meru-innovators-infra-api"
-
-    local branch="infrah-must-api-final" # Change to the desired branch if needed
+    local branch="infrah-must-api-final"
 
     log_info "Deploying Container App: $container_app_name"
 
-    # Deploy container app
- # Deploy container app
+    # Deploy container app with valid parameters
     az containerapp up \
         --name "$container_app_name" \
         --resource-group "$PROJECT_RESOURCE_GROUP" \
@@ -164,10 +162,7 @@ deploy_container_app() {
         --branch "$branch" \
         --registry-server "$registry_url" \
         --ingress external \
-        --target-port 8000 \
-        --env-vars \
-
-
+        --target-port 8000
 
 
     # Update container app settings
