@@ -115,6 +115,43 @@ class RegisterView(APIView):
             "errors": error_details,
             "data": None
         }, status=status.HTTP_400_BAD_REQUEST)
+    
+    def send_otp_email(self, user):
+        """
+        Generate OTP code and send verification email to the user
+        """
+        # Generate a 6-digit OTP
+        otp_code = ''.join(random.choices('0123456789', k=6))
+        
+        # Save OTP to database using your existing model fields
+        otp = OTP.objects.create(
+            user=user,
+            otp_code=otp_code,
+            # expires_at will be set automatically in your save method
+        )
+        
+        # Prepare email content
+        subject = "Verify Your Email Address"
+        message = f"""Hello {user.first_name},
+
+    Thank you for registering! Please use the following code to verify your email address:
+
+    {otp_code}
+
+    This code will expire in 10 minutes.
+
+    If you didn't register for an account, please ignore this email.
+
+    Best regards,
+    Your Application Team
+    """
+        from_email = settings.EMAIL_HOST_USER
+        recipient_list = [user.email]
+        
+        # Send email
+        send_mail(subject, message, from_email, recipient_list)
+        
+        return otp
 
 class UnifiedOTPVerificationView(APIView):
     permission_classes = []
@@ -511,24 +548,6 @@ def send_password_change_email(user,token):
     )
 
             
-    
-# class LogoutView(APIView):
-#     permission_classes = [IsAuthenticated]
-
-#     def post(self, request):
-#         try:
-#             # Blacklist refresh token
-#             refresh_token = request.data.get('refresh_token')
-#             token = RefreshToken(refresh_token)
-#             token.blacklist()
-            
-#             return Response({
-#                 'message': 'Logout successful'
-#             }, status=status.HTTP_200_OK)
-#         except Exception as e:
-#             return Response({
-#                 'message': 'Invalid token'
-#             }, status=status.HTTP_400_BAD_REQUEST)
 
         
 import json
@@ -867,28 +886,6 @@ class RequestPasswordResetView(APIView):
 
             return Response({"message":"OTP has been sent to your email."},status=status.HTTP_200_OK)
         return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
-    
-# class VerifyOTPView(APIView):
-#     def post(self, request):
-#         serializer = VerifyOTPSerializer(data=request.data)
-#         if serializer.is_valid():
-#             email = serializer.validated_data['email']
-#             otp_code = serializer.validated_data['otp_code']
-
-#             user = User.objects.get(email=email)
-#             otp = OTP.objects.filter(
-#                 user=user,
-#                 otp_code=otp_code,
-#                 is_verified=False
-#             ).order_by('-created_at').first()
-
-#             if otp and otp.is_valid():
-#                 otp.is_verified = True  # Mark OTP as verified
-#                 otp.save()
-#                 print(f"OTP {otp.otp_code} verified for user {user.email}")
-#                 return Response({"message": "OTP verified successfully."}, status=status.HTTP_200_OK)
-#             return Response({"message": "Invalid or expired OTP"}, status=status.HTTP_400_BAD_REQUEST)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
 class ResetPasswordView(APIView):
     def post(self, request):
