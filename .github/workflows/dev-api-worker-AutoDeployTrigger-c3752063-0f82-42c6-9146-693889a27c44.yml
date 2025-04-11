@@ -1,0 +1,44 @@
+name: Trigger auto deployment for dev-api-worker
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ infrah-must-api-final ]
+    paths:
+    - '**'
+    - '.github/workflows/dev-api-worker-AutoDeployTrigger-c3752063-0f82-42c6-9146-693889a27c44.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:
+      
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.DEVAPIWORKER_AZURE_CREDENTIALS }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: devapicontregistry.azurecr.io
+          registryUsername: ${{ secrets.DEVAPIWORKER_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.DEVAPIWORKER_REGISTRY_PASSWORD }}
+          containerAppName: dev-api-worker
+          resourceGroup: MustDevops
+          imageToBuild: devapicontregistry.azurecr.io/dev-api-worker:${{ github.sha }}
+          
+            
+
+     
+
