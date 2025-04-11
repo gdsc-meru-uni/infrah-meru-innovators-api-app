@@ -148,26 +148,64 @@ class EventViewSet(viewsets.ModelViewSet):
 
     
     @action(methods=['put', 'patch'], detail=True, url_path='update', url_name='update-event')
-    def update_event(self,request,*args,**kwargs):
-        #partial = kwargs.pop('partial',False)
+    def update_event(self, request, *args, **kwargs):
         partial = kwargs.get('partial', request.method == 'PATCH')
         instance = self.get_object()
-        serializer = self.get_serializer(instance,data=request.data,partial=partial)
+        
+        # Handle file upload if image is in the request
+        file = request.FILES.get('image')
+        if file:
+            bucket_name = settings.AWS_STORAGE_BUCKET_NAME
+            object_key = f"event_images/{file.name}"
+
+            try:
+                # Upload image to S3
+                s3_client.put_object(
+                    Bucket=bucket_name,
+                    Key=object_key,
+                    Body=file.read(),
+                    ContentType=file.content_type
+                )
+                
+                # Update image_url field in the data
+                mutable_data = request.data.copy()
+                mutable_data['image_url'] = f"event_images/{file.name}"
+                
+                # Use modified data for serializer
+                serializer = self.get_serializer(instance, data=mutable_data, partial=partial)
+            except Exception as e:
+                return Response({
+                    "message": f"Failed to upload image to S3: {str(e)}", 
+                    "status": "error",
+                    "data": None
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        else:
+            # No new image, just update other fields
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
 
         if serializer.is_valid():
             event_instance = serializer.save()
+            
+            # If image was updated, include the full URL in response
+            if file:
+                image_url = generate_s3_image_url(bucket_name, object_key)
+                response_data = EventsSerializer(event_instance).data
+                response_data['image_url'] = image_url
+            else:
+                response_data = EventsSerializer(event_instance).data
+                
             return Response({
-                'message':'Event Updated Successfully',
-                'status':'success',
-                'data':EventsSerializer(event_instance).data
-            },status=status.HTTP_200_OK)
+                'message': 'Event Updated Successfully',
+                'status': 'success',
+                'data': response_data
+            }, status=status.HTTP_200_OK)
         
         return Response({
-            'message':'Event update failed',
-            'status':'error',
-            'errors':serializer.errors,
-            'data':None
-        },status=status.HTTP_400_BAD_REQUEST)
+            'message': 'Event update failed',
+            'status': 'error',
+            'errors': serializer.errors,
+            'data': None
+        }, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'], url_path='list', url_name='list-events')
     def list_events(self, request, *args,**kwargs):
