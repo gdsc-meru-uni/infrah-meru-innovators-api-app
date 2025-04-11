@@ -8,7 +8,10 @@ from django.dispatch import receiver
 import hashlib
 import uuid
 from Club.models import Club, ExecutiveMember 
+from account.models import User
 #from django.contrib.auth.models import User
+
+from account.models import User
 
 class SubscribedUsers(models.Model):
     email = models.EmailField(unique=True, max_length=100)
@@ -79,39 +82,42 @@ class Social_media(models.Model):
     def __str__(self):
         return f"{self.platform}"
     
-    
 class CommunityProfile(models.Model):
     MEETING_TYPES = [
         ('VIRTUAL', 'Virtual'),
         ('PHYSICAL', 'Physical'),
         ('HYBRID', 'Hybrid')
     ]
+    
     name = models.CharField(max_length=200)
-    club = models.ForeignKey('Club.Club',  related_name='communities', on_delete=models.CASCADE)
+    club = models.ForeignKey('Club.Club', related_name='communities', on_delete=models.CASCADE)
+    
+    # Updated ForeignKey fields to reference User model explicitly
     community_lead = models.ForeignKey(
-        'Club.ExecutiveMember', 
-        related_name='communities',
-        on_delete=models.CASCADE,
+        User,
+        related_name='lead_communities',
+        on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
     co_lead = models.ForeignKey(
-       'Club.ExecutiveMember', 
-        related_name='co_leads',
-        on_delete=models.CASCADE,
+        User,
+        related_name='co_lead_communities',
+        on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
     secretary = models.ForeignKey(
-        ExecutiveMember, 
-        on_delete=models.SET_NULL, 
+        User,
         related_name='secretary_communities',
+        on_delete=models.SET_NULL,
         null=True,
         blank=True
     )
+    
     email = models.EmailField(blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    social_media = models.ManyToManyField(Social_media,related_name='communities')
+    social_media = models.ManyToManyField('Innovation_WebApp.Social_media', related_name='communities')
     description = models.TextField()
     founding_date = models.DateField(blank=True, null=True)
     total_members = models.IntegerField(default=0)
@@ -119,24 +125,31 @@ class CommunityProfile(models.Model):
     tech_stack = models.JSONField(blank=True, null=True)
 
     def update_total_members(self):
-        current_count = self.members.count()
+        """
+        Update the total_members count based on related CommunityMember objects
+        """
+        current_count = self.members.count()  # Assumes a related_name='members' exists
         if self.total_members != current_count:
+            self.total_members = current_count
             CommunityProfile.objects.filter(id=self.id).update(total_members=current_count)
 
     def save(self, *args, **kwargs):
-        if not self.pk:  # Only for new instances
-            super().save(*args, **kwargs)
+        """
+        Override save to handle initial member count update
+        """
+        super().save(*args, **kwargs)
+        if 'update_fields' not in kwargs or 'total_members' not in kwargs.get('update_fields', []):
             self.update_total_members()
-        else:
-            super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
     
     def get_sessions(self):
-        return self.sessions.all()
+        """
+        Return all related sessions
+        """
+        return self.sessions.all()  # Assumes a related_name='sessions' exists
     
-       # Convenience methods to get executive information
     def get_lead_email(self):
         return self.community_lead.email if self.community_lead else None
     
@@ -144,14 +157,16 @@ class CommunityProfile(models.Model):
         return self.co_lead.email if self.co_lead else None
     
     def get_secretary_email(self):
-        return self.secretary.email if self.secretary else None 
-    
-    @receiver([post_save, post_delete], sender='Innovation_WebApp.CommunityMember')
-    def update_community_member_count(sender, instance, **kwargs):
-        if instance.community:
-            instance.community.update_total_members()
-    
- 
+        return self.secretary.email if self.secretary else None
+
+# Signal handler should be outside the class
+@receiver([post_save, post_delete], sender='Innovation_WebApp.CommunityMember')
+def update_community_member_count(sender, instance, **kwargs):
+    """
+    Update member count when CommunityMember is added or removed
+    """
+    if instance.community:
+        instance.community.update_total_members()
     
     
     

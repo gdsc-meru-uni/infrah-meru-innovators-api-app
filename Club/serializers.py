@@ -94,9 +94,47 @@ class ClubSerializer(serializers.ModelSerializer):
             result.append(community_data)
         
         return result
+    
 class ExecutiveMemberSerializer(serializers.ModelSerializer):
+    user_details = serializers.SerializerMethodField()
+    community_details = serializers.SerializerMethodField()
+    
     class Meta:
         model = ExecutiveMember
-        fields = '__all__'
-
+        fields = ['id', 'user', 'community', 'position', 'joined_date', 'user_details', 'community_details']
+        read_only_fields = ['joined_date']
+    
+    def get_user_details(self, obj):
+        return {
+            'id': obj.user.id,
+            'username': obj.user.username,
+            'email': obj.user.email,
+            'first_name': obj.user.first_name,
+            'last_name': obj.user.last_name
+        }
+    
+    def get_community_details(self, obj):
+        return {
+            'id': obj.community.id,
+            'name': obj.community.name
+        }
+    
+    def validate(self, data):
+        # Check if user is already an executive in another community
+        user = data.get('user')
+        community = data.get('community')
+        
+        if self.instance:
+            # For update operations, exclude the current instance
+            is_executive = ExecutiveMember.objects.filter(
+                user=user
+            ).exclude(id=self.instance.id).exists()
+        else:
+            # For create operations
+            is_executive = ExecutiveMember.objects.filter(user=user).exists()
+        
+        if is_executive:
+            raise serializers.ValidationError(f"User {user.email} is already an executive in another community")
+        
+        return data
 

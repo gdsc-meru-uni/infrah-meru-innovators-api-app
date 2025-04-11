@@ -4,7 +4,7 @@ from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
 from rest_framework import viewsets, views, status,permissions
 from rest_framework.response import Response
-from .serializers import CommunityJoinSerializer, CommunityMemberSerializer, CommunitySessionSerializer, SubscribedUsersSerializer, EventsSerializer,EventRegistrationSerializer,CommunityProfileSerializer
+from .serializers import CommunityJoinSerializer, CommunityMemberSerializer, CommunitySessionSerializer, MyRegistrationSerializer, SubscribedUsersSerializer, EventsSerializer,EventRegistrationSerializer,CommunityProfileSerializer
 from .models import CommunityMember, SubscribedUsers, Events,EventRegistration,CommunityProfile
 from django.core.mail import send_mail, EmailMessage
 from rest_framework.permissions import IsAdminUser,IsAuthenticated
@@ -34,6 +34,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import boto3
 from django.db.models import Q 
+from Club.models import ExecutiveMember
 
 from .models import Events  # Assuming Events model is imported
 from .serializers import EventsSerializer  # Assuming EventsSerializer is imported
@@ -41,6 +42,10 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404
 s3_client = boto3.client('s3')
 from Club.models import Club
+from django.db import transaction
+from account.models import User
+from django.db import transaction, models
+
 class EventPagination(PageNumberPagination):
     page_size = 10 
     page_size_query_param = 'page_size'
@@ -501,7 +506,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
             user_email = request.user.email
             
             # Find all registrations with this email
-            registrations = EventRegistration.objects.filter(email=user_email)
+            registrations = EventRegistration.objects.filter(email=user_email).select_related('event')
             
             if not registrations.exists():
                 return Response({
@@ -510,8 +515,9 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     'data': []
                 }, status=status.HTTP_200_OK)
             
-            # Serialize the registrations
-            serializer = self.get_serializer(registrations, many=True)
+            # Use the updated serializer for the registration with event details
+            registration = registrations.first()  # Get the first registration
+            serializer = MyRegistrationSerializer(registration)
             
             return Response({
                 'message': 'Your registered events retrieved successfully',
@@ -525,7 +531,6 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                 'status': 'failed',
                 'data': None
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
     def get_queryset(self):
         event_pk = self.kwargs.get('event_pk')
@@ -614,44 +619,146 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
     
         return response
 
-DEFAULT_CLUB_ID = 1  
+DEFAULT_CLUB_ID = 1
 class CommunityProfileViewSet(viewsets.ModelViewSet):
     queryset = CommunityProfile.objects.all().order_by('id')
     serializer_class = CommunityProfileSerializer
 
-    def perform_create(self,serializer):
-        # If club is not provided, use the default club
-        if 'club' not in serializer.validated_data:
-            club = get_object_or_404(Club, id=DEFAULT_CLUB_ID)
-            serializer.save(club=club)
-        else:
-            serializer.save()
-
     def create(self, request, *args, **kwargs):
+        print(f"View - Request data: {request.data}")
         try:
-            serializer = self.get_serializer(data=request.data)
-            if serializer.is_valid():
-                self.perform_create(serializer)
-                return Response({
-                    'message': 'Community Created successfully',
-                    'status': 'success',
-                    'data': serializer.data
-                }, status=status.HTTP_201_CREATED)
+            with transaction.atomic():
+                serializer = self.get_serializer(data=request.data)
+                print(f"View - Initial data: {serializer.initial_data}")
+                if serializer.is_valid():
+                    print(f"View - Validated data: {serializer.validated_data}")
 
-            error_messages = "\n".join(
-                f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
-            )
-            return Response({
-                'message': f'Community Creation failed: {error_messages}',
-                'status': 'failed',
-                'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+                    # Validate executive conflicts using IDs
+                    community_lead_id = serializer.validated_data.get('community_lead')
+                    co_lead_id = serializer.validated_data.get('co_lead')
+                    secretary_id = serializer.validated_data.get('secretary')
+
+                    # Check if any of the users are already executives
+                    if community_lead_id:
+                        community_lead = get_object_or_404(User, id=community_lead_id)
+                        if ExecutiveMember.objects.filter(user=community_lead).exists():
+                            return Response({
+                                'message': f'User {community_lead.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    if co_lead_id:
+                        co_lead = get_object_or_404(User, id=co_lead_id)
+                        if ExecutiveMember.objects.filter(user=co_lead).exists():
+                            return Response({
+                                'message': f'User {co_lead.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    if secretary_id:
+                        secretary = get_object_or_404(User, id=secretary_id)
+                        if ExecutiveMember.objects.filter(user=secretary).exists():
+                            return Response({
+                                'message': f'User {secretary.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    community = serializer.save()
+                    print(f"View - Community created: {community}")
+
+                    return Response({
+                        'message': 'Community created successfully',
+                        'status': 'success',
+                        'data': self.get_serializer(community).data
+                    }, status=status.HTTP_201_CREATED)
+
+                error_messages = "\n".join(
+                    f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
+                )
+                print(f"View - Validation errors: {serializer.errors}")
+                return Response({
+                    'message': f'Community creation failed: {error_messages}',
+                    'status': 'failed',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
         except Exception as e:
+            print(f"View - Exception: {str(e)}")
             return Response({
                 'message': f'Error creating community: {str(e)}',
                 'status': 'failed',
                 'data': None
-            }, status=status.HTTP_400_BAD_REQUEST)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    def update(self, request, *args, **kwargs):
+        try:
+            with transaction.atomic():
+                instance = self.get_object()
+                serializer = self.get_serializer(instance, data=request.data, partial=True)
+                
+                if serializer.is_valid():
+                    # Validate executive conflicts using IDs
+                    community_lead_id = serializer.validated_data.get('community_lead')
+                    co_lead_id = serializer.validated_data.get('co_lead')
+                    secretary_id = serializer.validated_data.get('secretary')
+
+                    # Check if any new executives are already executives in other communities
+                    if community_lead_id and community_lead_id != instance.community_lead_id:
+                        community_lead = get_object_or_404(User, id=community_lead_id)
+                        if ExecutiveMember.objects.filter(user=community_lead).exclude(community=instance).exists():
+                            return Response({
+                                'message': f'User {community_lead.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    if co_lead_id and co_lead_id != instance.co_lead_id:
+                        co_lead = get_object_or_404(User, id=co_lead_id)
+                        if ExecutiveMember.objects.filter(user=co_lead).exclude(community=instance).exists():
+                            return Response({
+                                'message': f'User {co_lead.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    if secretary_id and secretary_id != instance.secretary_id:
+                        secretary = get_object_or_404(User, id=secretary_id)
+                        if ExecutiveMember.objects.filter(user=secretary).exclude(community=instance).exists():
+                            return Response({
+                                'message': f'User {secretary.email} is already an executive in another community',
+                                'status': 'failed',
+                                'data': None
+                            }, status=status.HTTP_400_BAD_REQUEST)
+
+                    updated_community = serializer.save()
+                    
+                    return Response({
+                        'message': 'Community updated successfully',
+                        'status': 'success',
+                        'data': self.get_serializer(updated_community).data
+                    }, status=status.HTTP_200_OK)
+
+                error_messages = "\n".join(
+                    f"{field}: {', '.join(errors)}" for field, errors in serializer.errors.items()
+                )
+                return Response({
+                    'message': f'Community update failed: {error_messages}',
+                    'status': 'failed',
+                    'data': None
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+        except Exception as e:
+            return Response({
+                'message': f'Error updating community: {str(e)}',
+                'status': 'failed',
+                'data': None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def list(self,request,*args,**kwargs):
         try:
@@ -798,7 +905,7 @@ class SessionCreateView(APIView):
                 'status':'failed',
                 'data':None
             },status=status.HTTP_400_BAD_REQUEST)
-            #return Response({"detail": "Community not found."}, status=status.HTTP_404_NOT_FOUND)
+            
         
 
     
