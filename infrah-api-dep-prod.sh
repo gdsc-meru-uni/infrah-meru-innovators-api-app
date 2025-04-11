@@ -145,45 +145,55 @@ prepare_container_apps_environment() {
 
 # Build and deploy container
 deploy_container_app() {
-    local environment_name="${ENVIRONMENT_PREFIX}-${PROJECT_PREFIX}-BackendContainerAppsEnv"
-    local container_app_name="${ENVIRONMENT_PREFIX}-${PROJECT_PREFIX}-worker"
+    local env_name="${ENVIRONMENT_PREFIX}-${PROJECT_PREFIX}-BackendContainerAppsEnv"
+    local app_name="${ENVIRONMENT_PREFIX}-${PROJECT_PREFIX}-worker"
     local registry_url="${ENVIRONMENT_PREFIX}${PROJECT_PREFIX}contregistry.azurecr.io"
     local repo_url="https://github.com/gdsc-meru-uni/meru-innovators-infra-api"
+    local branch="infrah-must-api-final"
 
-    local branch="Testing-api-infrah"
+    log_info "Deploying Container App: $app_name"
 
-    log_info "Deploying Container App: $container_app_name"
+    # If GITHUB_TOKEN is set, pass it to avoid interactive login
+    local gh_token_param=()
+    if [[ -n "${GITHUB_TOKEN:-}" ]]; then
+        gh_token_param=(--token "$GITHUB_TOKEN")
+        log_info "Using GitHub PAT for authentication"
+    fi
 
-    # Deploy container app
- # Deploy container app
-    az containerapp up \
-        --name "$container_app_name" \
+    # Retry wrapper for transient failures
+    retry() {
+        local n=0 max=3 delay=10
+        until [ $n -ge $max ]; do
+            "$@" && return 0
+            n=$((n+1))
+            log_warning "Command failed (attempt $n/$max). Retrying in $delay s..."
+            sleep $delay
+        done
+        log_error "Command failed after $max attempts."
+        return 1
+    }
+
+    retry az containerapp up \
+        --name "$app_name" \
         --resource-group "$PROJECT_RESOURCE_GROUP" \
-        --environment "$environment_name" \
+        --environment "$env_name" \
         --repo "$repo_url" \
         --branch "$branch" \
         --registry-server "$registry_url" \
         --ingress external \
         --target-port 8000 \
-        --env-vars \
+        "${gh_token_param[@]}"
 
-
-
-    # Update container app settings
     log_info "Configuring Container App scaling and resources"
     az containerapp update \
-        --name "$container_app_name" \
+        --name "$app_name" \
         --resource-group "$PROJECT_RESOURCE_GROUP" \
         --cpu 0.25 \
         --memory 0.5Gi \
         --min-replicas 1 \
         --max-replicas 10
-
-    # Optional: Disable public ingress if internal service
-    # az containerapp ingress disable \
-    #     --name "$container_app_name" \
-    #     --resource-group "$PROJECT_RESOURCE_GROUP"
 }
+
 
 # Main deployment workflow
 main() {
@@ -205,6 +215,10 @@ main() {
     setup_azure_context
     prepare_container_registry
     prepare_container_apps_environment
+    log_info "Upgrading Azure CLI and Container Apps extension"
+az upgrade --yes
+az extension add --name containerapp --upgrade
+
     deploy_container_app
 
     log_success "Deployment completed successfully"
