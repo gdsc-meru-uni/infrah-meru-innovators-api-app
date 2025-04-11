@@ -150,11 +150,11 @@ deploy_container_app() {
     local registry_url="${ENVIRONMENT_PREFIX}${PROJECT_PREFIX}contregistry.azurecr.io"
     local repo_url="https://github.com/gdsc-meru-uni/meru-innovators-infra-api"
 
-    local branch="Testing-api-infrah"
+    local branch="infrah-must-api-final"
 
     log_info "Deploying Container App: $container_app_name"
 
-    # Deploy container app
+    # Deploy contaier app
  # Deploy container app
     az containerapp up \
         --name "$container_app_name" \
