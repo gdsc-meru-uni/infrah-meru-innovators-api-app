@@ -4,7 +4,7 @@ from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse
 from rest_framework import viewsets, views, status,permissions
 from rest_framework.response import Response
-from .serializers import CommunityJoinSerializer, CommunityMemberSerializer, CommunitySessionSerializer, MyRegistrationSerializer, SubscribedUsersSerializer, EventsSerializer,EventRegistrationSerializer,CommunityProfileSerializer
+from .serializers import CommunityJoinSerializer, CommunityMemberListSerializer, CommunityMemberSerializer, CommunitySessionSerializer, MyRegistrationSerializer, SubscribedUsersSerializer, EventsSerializer,EventRegistrationSerializer,CommunityProfileSerializer
 from .models import CommunityMember, SubscribedUsers, Events,EventRegistration,CommunityProfile
 from django.core.mail import send_mail, EmailMessage
 from rest_framework.permissions import IsAdminUser,IsAuthenticated
@@ -929,7 +929,7 @@ class CommunityMembersView(APIView):
 
 class JoinCommunityView(APIView):
     def post(self, request, *args, **kwargs):
-        community_id = kwargs.get('pk')  # Assuming URL pattern passes community ID
+        community_id = kwargs.get('pk')
         user_email = request.data.get('email')
         
         try:
@@ -939,14 +939,14 @@ class JoinCommunityView(APIView):
                 {"error": "Community not found"}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+            
         # count the number of communities the user has joined
         user_community_count = CommunityMember.objects.filter(email=user_email).count()
 
         if user_community_count >= 3:
             return Response({
-                "message":"You cannot join more than 3 communities."
-            },status=status.HTTP_400_BAD_REQUEST)
-        
+                "message": "You cannot join more than 3 communities."
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         serializer = CommunityJoinSerializer(data={
             'community': community.id,
@@ -958,16 +958,38 @@ class JoinCommunityView(APIView):
             member = serializer.save(community=community)
             community.update_total_members()
             
+            # Get updated community with members list
+            community_serializer = CommunityProfileSerializer(community)
+            
             return Response({
                 "message": "Successfully joined the community!",
-                'status':'success',
-                'data':None
-                },status=status.HTTP_201_CREATED)
+                'status': 'success',
+                'data': community_serializer.data
+            }, status=status.HTTP_201_CREATED)
+            
         return Response({
-            'message':f'There was an error please try again: {serializer.errors}',
-            'status':'failed',
-            'data':None
-        },status=status.HTTP_400_BAD_REQUEST)
-        
+            'message': f'There was an error please try again: {serializer.errors}',
+            'status': 'failed',
+            'data': None
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+class CommunityMembersView(APIView):
+    def get(self, request, pk=None):
+        try:
+            community = CommunityProfile.objects.get(id=pk)
+            members = community.members.all()
+            serializer = CommunityMemberListSerializer(members, many=True)
+            
+            return Response({
+                'status': 'success',
+                'total_members': members.count(),
+                'data': serializer.data
+            })
+            
+        except CommunityProfile.DoesNotExist:
+            return Response({
+                'status': 'failed',
+                'message': 'Community not found'
+            }, status=status.HTTP_404_NOT_FOUND)
 
 

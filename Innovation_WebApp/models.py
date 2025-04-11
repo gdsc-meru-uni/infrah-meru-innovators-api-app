@@ -159,14 +159,14 @@ class CommunityProfile(models.Model):
     def get_secretary_email(self):
         return self.secretary.email if self.secretary else None
 
-# Signal handler should be outside the class
-@receiver([post_save, post_delete], sender='Innovation_WebApp.CommunityMember')
-def update_community_member_count(sender, instance, **kwargs):
-    """
-    Update member count when CommunityMember is added or removed
-    """
-    if instance.community:
-        instance.community.update_total_members()
+    # Signal handler should be outside the class
+    @receiver([post_save, post_delete], sender='Innovation_WebApp.CommunityMember')
+    def update_community_member_count(sender, instance, **kwargs):
+        """
+        Update member count when CommunityMember is added or removed
+        """
+        if instance.community:
+            instance.community.update_total_members()
     
     
     
@@ -192,14 +192,31 @@ class CommunitySession(models.Model):
     
     
 
+# class CommunityMember(models.Model):
+#     community = models.ForeignKey(CommunityProfile, related_name='members', on_delete=models.CASCADE,null=True)
+#     name = models.CharField(max_length=100)
+#     email = models.EmailField()
+#     joined_at = models.DateTimeField(auto_now_add=True)
+
+#     def __str__(self):
+#         return f"{self.name} ({self.community.name})"
+
 class CommunityMember(models.Model):
-    community = models.ForeignKey(CommunityProfile, related_name='members', on_delete=models.CASCADE,null=True)
+    community = models.ForeignKey(
+        'CommunityProfile', 
+        related_name='members',  # This related_name is important
+        on_delete=models.CASCADE
+    )
     name = models.CharField(max_length=100)
     email = models.EmailField()
-    joined_at = models.DateTimeField(auto_now_add=True)
-
+    joined_date = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ['community', 'email']  # Prevents duplicate memberships
+        
     def __str__(self):
-        return f"{self.name} ({self.community.name})"
+        return f"{self.name} - {self.community.name}"
+
     
 
 

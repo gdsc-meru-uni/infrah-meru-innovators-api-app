@@ -210,6 +210,14 @@ class SocialMediaSerializer(serializers.ModelSerializer):
         model = Social_media
         fields = ['id','platform','url']
 
+class CommunityMemberListSerializer(serializers.ModelSerializer):
+    joined_date = serializers.DateTimeField(format="%Y-%m-%d", read_only=True)
+    
+    class Meta:
+        model = CommunityMember
+        fields = ['id', 'name', 'email', 'joined_date']
+        read_only_fields = ['id', 'joined_date']
+
 
 
 DEFAULT_CLUB_ID = 1
@@ -246,6 +254,8 @@ class CommunityProfileSerializer(serializers.ModelSerializer):
 
     social_media = SocialMediaSerializer(many=True, required=False)
     sessions = CommunitySessionSerializer(many=True, required=False)
+    members = CommunityMemberListSerializer(many=True, read_only=True)
+
 
     class Meta:
         model = CommunityProfile
@@ -253,11 +263,11 @@ class CommunityProfileSerializer(serializers.ModelSerializer):
             'id', 'name', 'club', 'community_lead', 'co_lead', 'secretary',
             'community_lead_details', 'co_lead_details', 'secretary_details',
             'email', 'phone_number', 'social_media', 'description',
-            'founding_date', 'total_members', 'is_recruiting', 'tech_stack',
+            'founding_date', 'total_members','members', 'is_recruiting', 'tech_stack',
             'sessions'
         ]
         read_only_fields = ['id', 'total_members', 'community_lead_details', 
-                           'co_lead_details', 'secretary_details']
+                           'co_lead_details', 'secretary_details','members']
 
     def to_internal_value(self, data):
         raw_data = data.copy()
