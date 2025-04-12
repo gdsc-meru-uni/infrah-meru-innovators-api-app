@@ -58,7 +58,7 @@ class EventRegistration(models.Model):
     
    
     uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='event_registrations', null=True)
     event = models.ForeignKey('Events', on_delete=models.CASCADE, related_name='registrations')
     full_name = models.CharField(max_length=200)
     email = models.EmailField(validators=[EmailValidator()])
@@ -191,15 +191,6 @@ class CommunitySession(models.Model):
         return f"{self.community.name} - {self.get_day_display()} Session"
     
     
-
-# class CommunityMember(models.Model):
-#     community = models.ForeignKey(CommunityProfile, related_name='members', on_delete=models.CASCADE,null=True)
-#     name = models.CharField(max_length=100)
-#     email = models.EmailField()
-#     joined_at = models.DateTimeField(auto_now_add=True)
-
-#     def __str__(self):
-#         return f"{self.name} ({self.community.name})"
 
 class CommunityMember(models.Model):
     community = models.ForeignKey(

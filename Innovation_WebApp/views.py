@@ -208,26 +208,37 @@ class EventViewSet(viewsets.ModelViewSet):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=False, methods=['get'], url_path='list', url_name='list-events')
-    def list_events(self, request, *args,**kwargs):
+    def list_events(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
+        
+        # Debug: Print raw image_url values from database
+        for event in queryset:
+            print(f"Event {event.id} has image_url in DB: {event.image_url}")
+        
         page = self.paginate_queryset(queryset)
-
+        
         if page is not None:
-            serializer = self.get_serializer(page,many=True)
+            serializer = self.get_serializer(page, many=True)
+            
+            # Debug: Print serialized data before returning
+            for item in serializer.data:
+                print(f"Serialized event {item['id']} has image_url: {item.get('image_url')}")
+            
             return self.get_paginated_response(serializer.data)
-        # Fallback incase pagination fails or is disabled
-        serializer=self.get_serializer(queryset,many=True)
-
+            
+        # Fallback in case pagination fails or is disabled
+        serializer = self.get_serializer(queryset, many=True)
+        
         return Response({
-            'message':'Events retrieved successfully',
-            'status':'success',
-            'data':{
-                'count':queryset.count(),
-                'next':None,
-                'previous':None,
-                'results':serializer.data
+            'message': 'Events retrieved successfully',
+            'status': 'success',
+            'data': {
+                'count': queryset.count(),
+                'next': None,
+                'previous': None,
+                'results': serializer.data
             }
-        },status=status.HTTP_200_OK)
+        }, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['delete'], url_path='delete', url_name='delete-event')
     def destroy_event(self, request, *args, **kwargs):
@@ -396,7 +407,10 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
 
         if serializer.is_valid():
             try:
-                registration = serializer.save()
+                if request.user.is_authenticated:
+                    registration = serializer.save(user=request.user)
+                else:
+                    registration = serializer.save()
 
                 event = registration.event
 
@@ -540,11 +554,8 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     'data': None
                 }, status=status.HTTP_401_UNAUTHORIZED)
             
-            # Get the authenticated user's email
-            user_email = request.user.email
-            
-            # Find all registrations with this email
-            registrations = EventRegistration.objects.filter(email=user_email).select_related('event')
+            # Only filter by user, not by email
+            registrations = EventRegistration.objects.filter(user=request.user).select_related('event')
             
             if not registrations.exists():
                 return Response({
@@ -553,7 +564,7 @@ class EventRegistrationViewSet(viewsets.ModelViewSet):
                     'data': []
                 }, status=status.HTTP_200_OK)
             
-            # Serialize all registrations, not just the first one
+            # Serialize all registrations
             serializer = MyRegistrationSerializer(registrations, many=True)
             
             return Response({

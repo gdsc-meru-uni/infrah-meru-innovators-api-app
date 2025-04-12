@@ -43,9 +43,16 @@ class EventsSerializer(serializers.ModelSerializer):
     def get_image_url(self, obj):
         """Return the full S3 URL for the image."""
         if obj.image_url:
+            # Debug: Print what we're working with
+            print(f"get_image_url processing: {obj.image_url}")
+            
             if obj.image_url.startswith('http'):
+                print(f"Using existing URL: {obj.image_url}")
                 return obj.image_url  # Already a full URL
-            return f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{obj.image_url}"
+            
+            full_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{obj.image_url}"
+            print(f"Converted to full URL: {full_url}")
+            return full_url
         return None
 
     def create(self, validated_data):
@@ -125,7 +132,11 @@ class EventsSerializer(serializers.ModelSerializer):
 
                 # Delete old image if it exists and isn't the default
                 if instance.image_url and 'default.png' not in instance.image_url:
-                    old_key = instance.image_url.split('.com/')[-1]
+                    # Handle both path-only and full URL formats
+                    old_key = instance.image_url
+                    if instance.image_url.startswith('http'):
+                        old_key = instance.image_url.split('.com/')[-1]
+                    
                     try:
                         s3_client.delete_object(
                             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
@@ -146,9 +157,8 @@ class EventsSerializer(serializers.ModelSerializer):
                     ExtraArgs={'ContentType': image_file.content_type}
                 )
 
-                # Update the image URL
-                s3_url = f"https://{settings.AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com/{filename}"
-                instance.image_url = s3_url
+                # Store just the path, not the full URL (consistent with create method)
+                instance.image_url = filename
 
             except Exception as e:
                 print(f"Error uploading to S3: {str(e)}")
@@ -163,7 +173,7 @@ class EventRegistrationSerializer(serializers.ModelSerializer):
         model = EventRegistration
         fields = ['uid', 'event', 'full_name', 'email', 'course', 'educational_level', 
                  'phone_number', 'expectations', 'registration_timestamp', 'ticket_number']
-        read_only_fields = ['registration_timestamp', 'ticket_number']
+        read_only_fields = ['uid','registration_timestamp', 'ticket_number']
 
     def create(self, validated_data):
         registration = super().create(validated_data)
