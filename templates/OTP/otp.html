@@ -90,11 +90,11 @@
         
         <div class="content">
             <h2>Email Verification</h2>
-            <p>Hello {otp_details.user},</p>
+            <p>Hello {{otp_details.user}},</p>
             <p>Thank you for registering! Please use the following verification code to complete your registration:</p>
             
             <div class="otp-container">
-                <div class="otp-code">{otp_details.otp}</div>
+                <div class="otp-code">{{otp_details.otp}}</div>
                 <div class="timer">This code will expire in 10 minutes</div>
             </div>
             

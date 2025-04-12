@@ -30,7 +30,7 @@ def send_ticket_email(registration):
 def send_the_otp_email(user,otp):
     otp_details = {
         'user':user.first_name,
-        'otp':otp
+        'otp':otp.otp_code
     }
     subject = 'Verify Your Email Address'
     html_message = render_to_string('OTP/otp.html',{'otp_details':otp_details})

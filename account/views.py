@@ -39,7 +39,7 @@ from django.http import HttpResponse
 from rest_framework_simplejwt.views import TokenRefreshView
 import traceback
 from datetime import timedelta
-
+from Innovation_WebApp.Email import send_the_otp_email
 import random
 import string
 
@@ -53,7 +53,18 @@ class RegisterView(APIView):
                 
                 # Generate and send OTP for verification
                 try:
-                    self.send_otp_email(user)
+                     # Generate a 6-digit OTP
+                    otp_code = ''.join(random.choices('0123456789', k=6))
+                    
+                    # Save OTP to database using your existing model fields
+                    otp = OTP.objects.create(
+                        user=user,
+                        otp_code=otp_code,
+                        # expires_at will be set automatically in your save method
+                    )
+                    send_the_otp_email(user,otp)
+
+                    # self.send_otp_email(user)
                 except Exception as e:
                     return Response({
                         "message": f'Failed to send OTP email: {str(e)}',
@@ -116,42 +127,42 @@ class RegisterView(APIView):
             "data": None
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    def send_otp_email(self, user):
-        """
-        Generate OTP code and send verification email to the user
-        """
-        # Generate a 6-digit OTP
-        otp_code = ''.join(random.choices('0123456789', k=6))
+    # def send_otp_email(self, user):
+    #     """
+    #     Generate OTP code and send verification email to the user
+    #     """
+        # # Generate a 6-digit OTP
+        # otp_code = ''.join(random.choices('0123456789', k=6))
         
-        # Save OTP to database using your existing model fields
-        otp = OTP.objects.create(
-            user=user,
-            otp_code=otp_code,
-            # expires_at will be set automatically in your save method
-        )
+        # # Save OTP to database using your existing model fields
+        # otp = OTP.objects.create(
+        #     user=user,
+        #     otp_code=otp_code,
+        #     # expires_at will be set automatically in your save method
+        # )
         
         # Prepare email content
-        subject = "Verify Your Email Address"
-        message = f"""Hello {user.first_name},
+        # subject = "Verify Your Email Address"
+        # message = f"""Hello {user.first_name},
 
-    Thank you for registering! Please use the following code to verify your email address:
+        # Thank you for registering! Please use the following code to verify your email address:
 
-    {otp_code}
+        # {otp_code}
 
-    This code will expire in 10 minutes.
+        # This code will expire in 10 minutes.
 
-    If you didn't register for an account, please ignore this email.
+        # If you didn't register for an account, please ignore this email.
 
-    Best regards,
-    Meru University Science Innovators Club (M.U.S.I.C)
-    """
-        from_email = settings.EMAIL_HOST_USER
-        recipient_list = [user.email]
+        # Best regards,
+        # Meru University Science Innovators Club (M.U.S.I.C)
+        # """
+        # from_email = settings.EMAIL_HOST_USER
+        # recipient_list = [user.email]
         
-        # Send email
-        send_mail(subject, message, from_email, recipient_list)
+        # # Send email
+        # send_mail(subject, message, from_email, recipient_list)
         
-        return otp
+        # return otp
 
 class UnifiedOTPVerificationView(APIView):
     permission_classes = []
