@@ -27,3 +27,22 @@ def send_ticket_email(registration):
     email.attach_alternative(html_message, "text/html")
     email.send(fail_silently=False)
 
+def send_the_otp_email(user,otp):
+    otp_details = {
+        'user':user.first_name,
+        'otp':otp
+    }
+    subject = 'Verify Your Email Address'
+    html_message = render_to_string('OTP/otp.html',{'otp_details':otp_details})
+    plain_message = strip_tags(html_message)
+
+    email = EmailMultiAlternatives(
+        subject,
+        plain_message,
+        'ondeyostephen0@gmail.com',
+
+        [user.email]
+    )
+    email.attach_alternative(html_message,"text/html")
+    email.send(fail_silently=False)
+    
